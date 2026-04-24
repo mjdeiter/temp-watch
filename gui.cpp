@@ -25,18 +25,24 @@
 
 
 // ─── version & changelog ────────────────────────────────────────────────────
-static const char* APP_VERSION = "1.4.0";
+static const char* APP_VERSION = "1.5.0";
+#ifndef BUILD_HASH
+#define BUILD_HASH "dev"
+#endif
+static const char* BUILD_HASH_STR = BUILD_HASH;
 
 struct ChangeEntry { const char* version; const char* date; const char* notes; };
 static const ChangeEntry CHANGELOG[] = {
+    { "1.5.0", "2026-04-24",
+      "- AI: fallback chain corrected: gemini-2.5-flash -> gemini-2.5-flash-lite\n"
+      "- AI: git hash embedded in About window (build.sh)\n"
+      "- Build: build.sh bakes git short hash at compile time\n"
+      "- Build: git repo initialized, releases tagged" },
     { "1.4.0", "2026-04-24",
       "- AI: removed thinkingConfig (caused 400 on every request)\n"
-      "- AI: non-streaming generateContent endpoint (reliable parsing)\n"
-      "- AI: model fallback chain: 2.5-flash -> 1.5-flash -> 1.5-flash-8b\n"
-      "- AI: retry status shows which model is being tried\n"
-      "- AI: error responses shown in red; Copy button hidden on error\n"
-      "- AI: animated spinner; curl --max-time 45\n"
-      "- Process list: removed mini bar that was clipping names" },
+      "- AI: non-streaming generateContent; error display in red\n"
+      "- AI: model fallback with retry; animated spinner\n"
+      "- Process list: removed mini bar clipping names" },
     { "1.3.0", "2025-04-20",
       "- AI: fixed gemini-2.5-flash token starvation (thinkingBudget=0, 2048 tok)\n"
       "- AI: word-wrap display (BeginChild + PushTextWrapPos)\n"
@@ -593,9 +599,9 @@ static void runAiQuery(const SystemState snap){
         }
 
         // build a tiny shell script — cleanest way to avoid quoting nightmares
-        // model fallback chain — try each until one succeeds
-        static const char* MODELS[]={"gemini-2.5-flash","gemini-1.5-flash","gemini-1.5-flash-8b"};
-        static const int   NMODELS=3;
+        // model fallback chain — confirmed working on free-tier key
+        static const char* MODELS[]={"gemini-2.5-flash","gemini-2.5-flash-lite"};
+        static const int   NMODELS=2;
         // pick model for this attempt (cycle through on repeated 503)
         const char* model=MODELS[std::min(attempt-1,NMODELS-1)];
 
@@ -1176,7 +1182,7 @@ int main(){
             ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor();
             ImGui::SameLine();
-            ImGui::TextDisabled("v%s", APP_VERSION);
+            ImGui::TextDisabled("v%s  (%s)", APP_VERSION, BUILD_HASH_STR);
             ImGui::Spacing();
             ImGui::TextDisabled("%s  |  %s  |  %s", gSysInfo.machine.c_str(), gSysInfo.cpu.c_str(), gSysInfo.os.c_str());
             ImGui::TextDisabled("UI: Dear ImGui + OpenGL3/GLFW   |   AI: Gemini 2.5 Flash (SSE)");
