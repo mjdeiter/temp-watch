@@ -1,0 +1,13 @@
+# Build artifacts
+temp-watch
+fan-watch
+fan-watch-gui
+*.o
+
+# Backups made during development
+*.bak
+*.bak2
+*.bak-*
+
+# Local AI config (contains API key)
+.config/gemini_api_key

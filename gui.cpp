@@ -25,7 +25,7 @@
 
 
 // ─── version & changelog ────────────────────────────────────────────────────
-static const char* APP_VERSION = "1.5.0";
+static const char* APP_VERSION = "1.6.0";
 #ifndef BUILD_HASH
 #define BUILD_HASH "dev"
 #endif
@@ -33,6 +33,10 @@ static const char* BUILD_HASH_STR = BUILD_HASH;
 
 struct ChangeEntry { const char* version; const char* date; const char* notes; };
 static const ChangeEntry CHANGELOG[] = {
+    { "1.6.0", "2026-09-12",
+      "- Process list: now scrollable (fixed-height child window, mouse wheel + scrollbar)\n"
+      "- Process list: fetches all running processes, not just top 14\n"
+      "- Process list: removed 0.3% CPU cutoff so idle processes are visible too" },
     { "1.5.0", "2026-04-24",
       "- AI: fallback chain corrected: gemini-2.5-flash -> gemini-2.5-flash-lite\n"
       "- AI: git hash embedded in About window (build.sh)\n"
@@ -411,7 +415,7 @@ static std::string shortName(const std::string& full){
     auto sl=tok.rfind('/'); return sl!=tok.npos?tok.substr(sl+1):tok;
 }
 
-static std::vector<ProcInfo> readProcs(int n=14){
+static std::vector<ProcInfo> readProcs(int n=1000){
     auto out=shellExec("ps -eo pid,%cpu,%mem,user,cmd --sort=-%cpu --no-headers 2>/dev/null | head -"+std::to_string(n+4));
     std::vector<ProcInfo> v;
     std::istringstream ss(out); std::string line;
@@ -1039,29 +1043,32 @@ int main(){
             ImGui::PopStyleColor();
             ImGui::Separator();
 
-            for(auto& p:snap.procs){
-                if(p.cpu<0.3f) break;
+            ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.04f,.04f,.06f,1.f));
+            if(ImGui::BeginChild("##proclist",ImVec2(-1,340),true,ImGuiWindowFlags_AlwaysVerticalScrollbar)){
+                for(auto& p:snap.procs){
+                    // PID as Selectable — right-click gives "Copy PID" context menu
+                    char pidStr[16]; snprintf(pidStr,sizeof(pidStr),"%d",p.pid);
+                    char pidPopId[32]; snprintf(pidPopId,sizeof(pidPopId),"##pidpop%d",p.pid);
+                    ImGui::PushStyleColor(ImGuiCol_Header,        ImVec4(.15f,.15f,.20f,1.f));
+                    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(.20f,.20f,.30f,1.f));
+                    ImGui::Selectable(pidStr, false, ImGuiSelectableFlags_None, ImVec2(72,0));
+                    ImGui::PopStyleColor(2);
+                    if(ImGui::BeginPopupContextItem(pidPopId)){
+                        if(ImGui::MenuItem("Copy PID")) ImGui::SetClipboardText(pidStr);
+                        ImGui::EndPopup();
+                    }
 
-                // PID as Selectable — right-click gives "Copy PID" context menu
-                char pidStr[16]; snprintf(pidStr,sizeof(pidStr),"%d",p.pid);
-                char pidPopId[32]; snprintf(pidPopId,sizeof(pidPopId),"##pidpop%d",p.pid);
-                ImGui::PushStyleColor(ImGuiCol_Header,        ImVec4(.15f,.15f,.20f,1.f));
-                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(.20f,.20f,.30f,1.f));
-                ImGui::Selectable(pidStr, false, ImGuiSelectableFlags_None, ImVec2(72,0));
-                ImGui::PopStyleColor(2);
-                if(ImGui::BeginPopupContextItem(pidPopId)){
-                    if(ImGui::MenuItem("Copy PID")) ImGui::SetClipboardText(pidStr);
-                    ImGui::EndPopup();
+                    ImGui::SameLine();
+                    ImGui::PushStyleColor(ImGuiCol_Text,cpuCol(p.cpu));
+                    ImGui::Text("%-11s %4.1f%% %4.1f%%  %s",
+                        p.user.substr(0,10).c_str(), p.cpu, p.mem, p.cmd.c_str());
+                    ImGui::PopStyleColor();
+
+                    // (mini bar removed — was truncating process names)
                 }
-
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Text,cpuCol(p.cpu));
-                ImGui::Text("%-11s %4.1f%% %4.1f%%  %s",
-                    p.user.substr(0,10).c_str(), p.cpu, p.mem, p.cmd.c_str());
-                ImGui::PopStyleColor();
-
-                // (mini bar removed — was truncating process names)
             }
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
             ImGui::Spacing();
         }
 
