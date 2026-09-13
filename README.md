@@ -62,4 +62,4 @@ Version and changelog are tracked in-app (see the **About** tab) and mirrored in
 
 ## License
 
-No license has been chosen yet for this project — all rights reserved by default until one is added.
+[MIT](LICENSE)
